@@ -1,0 +1,114 @@
+---
+title: "Analyze Drug Response"
+author: "Jessica Scarborough"
+date: "12/10/2021"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r load_packages}
+
+library(knitr)
+library(here)
+library(tidyverse)
+
+```
+
+
+# Load Data
+
+
+```{r load_data}
+
+tidy_data <- readRDS(here("Data", "del_dr_data.rds"))
+
+```
+
+
+
+# Plot Waterfalls
+
+
+```{r plot_waterfall, message=FALSE}
+
+plot_waterfall <- function(data, drug, color_label){
+  # filter by drug, order df by IC50 to create order in waterfall plot
+  filtered_data <- data %>%
+    filter(DRUG_NAME == drug) %>%
+    arrange(IC50) %>%
+    mutate(order_label = factor(IC50, levels = unique(IC50)))
+  drug_waterfall <- ggplot(filtered_data, aes(x = order_label, y = IC50, 
+                                              color = UQ(sym(color_label)), 
+                                              fill = UQ(sym(color_label)))) + 
+    geom_bar(stat = "identity") + 
+    labs(x = "Cell Line", y = "log2(IC50)") + 
+    scale_color_manual(values=c("navajowhite3", "darkseagreen4")) +
+    scale_fill_manual(values=c("navajowhite3", "darkseagreen4")) +
+    theme_classic() +
+    theme(axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+  ggsave(here("Plots", "Waterfall", color_label, paste0("waterfall_", drug, ".png")), plot = drug_waterfall)
+}
+
+plot_waterfall(tidy_data, "Cisplatin", color_label = "chr7q_del")
+
+
+for(drug in unique(tidy_data$DRUG_NAME)) {
+  plot_waterfall(tidy_data, drug, color_label = "chr7_del")
+}
+
+```
+
+# Plot Violins
+
+
+```{r plot_violin}
+
+plot_violins <- function(data, drug, deletion_label){
+  filtered_drug_data <- data %>%
+    filter(DRUG_NAME == drug)
+  filtered_drug_del_data <- data %>%
+    filter(DRUG_NAME == drug) %>%
+    filter(UQ(sym(deletion_label)) == "Yes")
+  violin_plot <- ggplot(filtered_drug_data) + 
+    geom_violin(aes(x = drug, y = IC50, fill = "navajowhite3"), 
+                scale = "count", trim = FALSE, draw_quantiles = c(0.25, 0.5, 0.75)) + 
+    geom_violin(data = filtered_drug_del_data, 
+                aes(x = drug, y = IC50, fill = "darkseagreen4"), 
+                trim = FALSE, width = 0.1, draw_quantiles = c(0.25, 0.5, 0.75)) + 
+    scale_fill_identity(name = "Cell Line Groups",
+                        breaks = c("navajowhite3", "darkseagreen4"),
+                        labels = c("All cell lines", paste(deletion_label, "cell lines")),
+                        guide = "legend") +
+    coord_flip() + 
+    labs(x = drug, y = "log2(IC50)") +
+    theme_classic() +
+    theme(axis.text.y = element_blank())
+  ggsave(here("Plots", "Violin", deletion_label, paste0("violin_", drug, ".png")))
+
+}
+
+for (drug in unique(tidy_data$DRUG_NAME)){
+  filtered_data_test <- tidy_data %>% 
+    filter(DRUG_NAME == drug & chr7_del == "Yes")
+  if(nrow(filtered_data_test) > 1){
+  plot_violins(tidy_data, drug, "chr7_del")
+  }
+}
+
+for (drug in unique(tidy_data$DRUG_NAME)){
+  filtered_data_test <- tidy_data %>% 
+    filter(DRUG_NAME == drug & chr7q_del == "Yes")
+  if(nrow(filtered_data_test) > 1){
+    plot_violins(tidy_data, drug, "chr7q_del")
+  }
+}
+
+```
+

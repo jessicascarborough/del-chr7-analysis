@@ -1,0 +1,163 @@
+---
+title: "Clean Data"
+author: "Jessica Scarborough"
+date: "12/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r load_packages}
+
+library(janitor)
+library(knitr)
+library(here)
+library(tidyverse)
+
+```
+
+
+
+# Genomics of Drug Sensitivity in Cancer (GDSC)
+
+The GDSC data must be downloaded using `download_data.Rmd`.
+
+## Clean metadata
+
+First, we'll load the meta data and print our options for cell line labels. From that, we'll list the labels we plan to keep and extract only the cell lines with those labels. 
+
+```{r clean_gdsc_meta}
+
+gdsc_meta <- readxl::read_excel(here("Data", "GDSC", "Cell_Lines_Details.xlsx")) %>%
+  clean_names()
+
+
+gdsc_meta_tidy <- gdsc_meta %>%
+  # mutate(cosmic_id = paste0("DATA.", cosmic_identifier)) %>%
+  dplyr::select(cosmic_id = cosmic_identifier, sample_name, tissue_label = gdsc_tissue_descriptor_2, tcga_label = cancer_type_matching_tcga_label)
+
+
+```
+
+## Clean drug response
+
+```{r clean_dr_gdsc}
+
+gdsc_dr <- readxl::read_excel(here("Data", "GDSC", "gdsc_dr.xlsx"))
+
+gdsc_dr_tidy <- gdsc_dr %>%
+  mutate(IC50 = log2(exp(LN_IC50))) %>% # convert natural log to log2
+  dplyr::select(cosmic_id = COSMIC_ID, DRUG_NAME, IC50, AUC)
+```
+
+## Combine GDSC tidy
+
+```{r combine_gdsc}
+
+gdsc_tidy <- gdsc_meta_tidy %>%
+  inner_join(gdsc_dr_tidy)
+
+```
+
+<!-- ## Clean deletion data -->
+
+<!-- In this project, we're interested in looking at any deletions in the 7th chromosome. -->
+
+<!-- ```{r clean_gdsc_del} -->
+
+<!-- gdsc_del <- readxl::read_excel(here("Data", "GDSC", "gdsc_del.xlsx"), skip = 2) %>% -->
+<!--   clean_names() -->
+
+
+<!-- gdsc_del_tidy <- gdsc_del %>% -->
+<!--   # extract just the region identifier (remove what comes after the parenthesis in that column) -->
+<!--   mutate(region_identifier = sapply(strsplit(gdsc_del$region_identifier, "(", fixed = TRUE), `[`, 1) ) %>% -->
+<!--   dplyr::select(sample_name = sample, alteration_type, region_identifier) %>% -->
+<!--   filter(alteration_type == "Deletion") -->
+
+
+<!-- ``` -->
+
+<!-- ```{r clean_gdsc_del_map} -->
+
+<!-- gdsc_del_map <- readxl::read_excel(here("Data", "GDSC", "gdsc_del_chr_map.xlsx"), skip = 17) %>% -->
+<!--   clean_names() -->
+
+<!-- gdsc_del_map_tidy <- gdsc_del_map %>% -->
+<!--   select(region_identifier = identifier, chr, locus) -->
+
+
+<!-- length(unique(gdsc_del_tidy$region_identifier)) -->
+
+<!-- length(intersect(gdsc_del_map_tidy$region_identifier, gdsc_del_tidy$region_identifier)) -->
+
+<!-- ``` -->
+
+#  CCLE 
+
+## Clean metadata
+
+```{r clean_ccle_meta}
+
+ccle_meta <- read.csv(file = here("Data", "CCLE", "sample_info.csv"))
+
+ccle_meta_tidy <- ccle_meta %>%
+  select(DepMap_ID, cosmic_id = COSMIC_ID)
+
+```
+
+## Clean deletion data
+
+```{r clean_ccle_del}
+
+ccle_del <- read.csv(file = here("Data", "CCLE", "arm_call_scores.csv"),
+                     row.names = 1, check.names = FALSE)
+
+ccle_del_tidy <- ccle_del %>%
+  rownames_to_column("DepMap_ID") %>%
+  select(DepMap_ID, chr7p=`7p`, chr7q=`7q`) %>%
+  mutate(chr7p = case_when(chr7p == 1 ~ "Amplification",
+                           chr7p == -1 ~ "Deletion", 
+                           chr7p == 0 ~ "No change"),
+         chr7q = case_when(chr7q == 1 ~ "Amplification", 
+                           chr7q == -1 ~ "Deletion", 
+                           chr7q == 0 ~ "No change"), 
+         chr7 = case_when(chr7p == "Amplification" | chr7q == "Amplification" ~ "Amplification",
+                          chr7p == "Deletion" | chr7q == "Deletion" ~ "Deletion",
+                          chr7p == "No change" & chr7q == "No change" ~ "No change"),
+         chr7p_del = ifelse(chr7p == "Deletion", "Yes", "No"),
+         chr7q_del = ifelse(chr7q == "Deletion","Yes", "No"),
+         chr7_del = ifelse(chr7 == "Deletion", "Yes", "No"))
+
+```
+
+
+## Combine CCLE tidy
+
+```{r combine_ccle}
+
+ccle_tidy <- ccle_meta_tidy %>%
+  inner_join(ccle_del_tidy)
+
+```
+
+# Tidied dataset
+
+```{r tidy_gdsc_data}
+
+tidy_data <- gdsc_tidy %>%
+  inner_join(ccle_tidy)
+
+```
+
+
+# Save data
+
+```{r save_data}
+
+saveRDS(tidy_data, here("Data", "del_dr_data.rds"))
+
+```

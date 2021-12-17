@@ -125,12 +125,9 @@ ccle_del_tidy <- ccle_del %>%
          chr7q = case_when(chr7q == 1 ~ "Amplification", 
                            chr7q == -1 ~ "Deletion", 
                            chr7q == 0 ~ "No change"), 
-         chr7 = case_when(chr7p == "Amplification" | chr7q == "Amplification" ~ "Amplification",
-                          chr7p == "Deletion" | chr7q == "Deletion" ~ "Deletion",
-                          chr7p == "No change" & chr7q == "No change" ~ "No change"),
+         chr7_del = ifelse(chr7p == "Deletion" | chr7q == "Deletion", "Yes", "No"),
          chr7p_del = ifelse(chr7p == "Deletion", "Yes", "No"),
-         chr7q_del = ifelse(chr7q == "Deletion","Yes", "No"),
-         chr7_del = ifelse(chr7 == "Deletion", "Yes", "No"))
+         chr7q_del = ifelse(chr7q == "Deletion","Yes", "No"))
 
 ```
 
@@ -150,6 +147,9 @@ ccle_tidy <- ccle_meta_tidy %>%
 
 tidy_data <- gdsc_tidy %>%
   inner_join(ccle_tidy)
+
+test <- tidy_data %>%
+  filter(DRUG_NAME == "SB505124")
 
 ```
 

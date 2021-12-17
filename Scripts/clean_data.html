@@ -179,7 +179,7 @@ pre code {
 ##     chisq.test, fisher.test</code></pre>
 <pre class="r"><code>library(knitr)
 library(here)</code></pre>
-<pre><code>## here() starts at /Users/jessicascarborough/repos/del-chr7-gdsc</code></pre>
+<pre><code>## here() starts at /Users/jessicascarborough/repos/del-chr7-analysis</code></pre>
 <pre class="r"><code>library(tidyverse)</code></pre>
 <pre><code>## ── Attaching packages ─────────────────────────────────────── tidyverse 1.3.1 ──</code></pre>
 <pre><code>## ✓ ggplot2 3.3.5     ✓ purrr   0.3.4
@@ -260,12 +260,9 @@ ccle_del_tidy &lt;- ccle_del %&gt;%
          chr7q = case_when(chr7q == 1 ~ &quot;Amplification&quot;, 
                            chr7q == -1 ~ &quot;Deletion&quot;, 
                            chr7q == 0 ~ &quot;No change&quot;), 
-         chr7 = case_when(chr7p == &quot;Amplification&quot; | chr7q == &quot;Amplification&quot; ~ &quot;Amplification&quot;,
-                          chr7p == &quot;Deletion&quot; | chr7q == &quot;Deletion&quot; ~ &quot;Deletion&quot;,
-                          chr7p == &quot;No change&quot; &amp; chr7q == &quot;No change&quot; ~ &quot;No change&quot;),
+         chr7_del = ifelse(chr7p == &quot;Deletion&quot; | chr7q == &quot;Deletion&quot;, &quot;Yes&quot;, &quot;No&quot;),
          chr7p_del = ifelse(chr7p == &quot;Deletion&quot;, &quot;Yes&quot;, &quot;No&quot;),
-         chr7q_del = ifelse(chr7q == &quot;Deletion&quot;,&quot;Yes&quot;, &quot;No&quot;),
-         chr7_del = ifelse(chr7 == &quot;Deletion&quot;, &quot;Yes&quot;, &quot;No&quot;))</code></pre>
+         chr7q_del = ifelse(chr7q == &quot;Deletion&quot;,&quot;Yes&quot;, &quot;No&quot;))</code></pre>
 </div>
 <div id="combine-ccle-tidy" class="section level2">
 <h2>Combine CCLE tidy</h2>
@@ -279,6 +276,8 @@ ccle_del_tidy &lt;- ccle_del %&gt;%
 <pre class="r"><code>tidy_data &lt;- gdsc_tidy %&gt;%
   inner_join(ccle_tidy)</code></pre>
 <pre><code>## Joining, by = &quot;cosmic_id&quot;</code></pre>
+<pre class="r"><code>test &lt;- tidy_data %&gt;%
+  filter(DRUG_NAME == &quot;SB505124&quot;)</code></pre>
 </div>
 <div id="save-data" class="section level1">
 <h1>Save data</h1>
